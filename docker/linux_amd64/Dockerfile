@@ -5,12 +5,28 @@ RUN yum-config-manager --disable epel || true
 
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
-RUN yum install -y curl zip unzip tar autoconf libtool automake
+RUN yum install -y curl zip unzip tar autoconf automake libtool m4
 
-# autoconf-archive macros for autotools-based vcpkg ports (e.g. krb5).
-# EPEL is disabled above, so install the m4 macros from the GNU tarball.
-RUN curl -sL https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-2024.10.16.tar.xz | tar -xJ -C /tmp \
-    && cp /tmp/autoconf-archive-2024.10.16/m4/*.m4 /usr/share/aclocal/
+# The manylinux base ships its own autotools in /usr/local while the el8
+# packages live in /usr. Mixing the two breaks autotools-based vcpkg ports
+# (krb5: "configure.ac: AC_INIT not found"). Install one consistent modern
+# stack into /usr/local, which takes precedence over both. EPEL is disabled,
+# so the autoconf-archive macros come from the GNU tarball.
+RUN set -eux; \
+    curl -sL https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.gz | tar -xz -C /tmp; \
+    curl -sL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.gz | tar -xz -C /tmp; \
+    curl -sL https://ftp.gnu.org/gnu/automake/automake-1.17.tar.gz | tar -xz -C /tmp; \
+    curl -sL https://ftp.gnu.org/gnu/libtool/libtool-2.5.4.tar.gz | tar -xz -C /tmp; \
+    curl -sL https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-2024.10.16.tar.xz | tar -xJ -C /tmp; \
+    cd /tmp/m4-1.4.19 && ./configure --prefix=/usr/local >/dev/null && make -j"$(nproc)" install >/dev/null; \
+    cd /tmp/autoconf-2.72 && ./configure --prefix=/usr/local >/dev/null && make -j"$(nproc)" install >/dev/null; \
+    hash -r; \
+    cd /tmp/automake-1.17 && ./configure --prefix=/usr/local >/dev/null && make -j"$(nproc)" install >/dev/null; \
+    cd /tmp/libtool-2.5.4 && ./configure --prefix=/usr/local >/dev/null && make -j"$(nproc)" install >/dev/null; \
+    mkdir -p /usr/local/share/aclocal; \
+    cp /tmp/autoconf-archive-2024.10.16/m4/*.m4 /usr/local/share/aclocal/; \
+    rm -rf /tmp/m4-1.4.19 /tmp/autoconf-2.72 /tmp/automake-1.17 /tmp/libtool-2.5.4 /tmp/autoconf-archive-2024.10.16; \
+    autoreconf --version | head -1; aclocal --version | head -1; libtoolize --version | head -1
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y perl-core
