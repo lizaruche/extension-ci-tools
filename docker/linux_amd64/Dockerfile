@@ -27,6 +27,14 @@ RUN set -eux; \
     cp /tmp/autoconf-archive-2024.10.16/m4/*.m4 /usr/local/share/aclocal/; \
     rm -rf /tmp/m4-1.4.19 /tmp/autoconf-2.72 /tmp/automake-1.17 /tmp/libtool-2.5.4 /tmp/autoconf-archive-2024.10.16; \
     autoreconf --version | head -1; aclocal --version | head -1; libtoolize --version | head -1
+
+# vcpkg's thrift port passes --file-prefix-map to bison (needs bison >= 3.7);
+# el8 only ships 3.0. flex from el8 is fine.
+RUN set -eux; \
+    curl -sL https://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.gz | tar -xz -C /tmp; \
+    cd /tmp/bison-3.8.2 && ./configure --prefix=/usr/local >/dev/null && make -j"$(nproc)" install >/dev/null; \
+    rm -rf /tmp/bison-3.8.2; \
+    bison --version | head -1
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y perl-core
