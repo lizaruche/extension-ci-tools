@@ -5,7 +5,12 @@ RUN yum-config-manager --disable epel || true
 
 # Setup the basic necessities
 RUN yum groupinstall -y "Development Tools"
-RUN yum install -y curl zip unzip tar autoconf libtool
+RUN yum install -y curl zip unzip tar autoconf libtool automake
+
+# autoconf-archive macros for autotools-based vcpkg ports (e.g. krb5).
+# EPEL is disabled above, so install the m4 macros from the GNU tarball.
+RUN curl -sL https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-2024.10.16.tar.xz | tar -xJ -C /tmp \
+    && cp /tmp/autoconf-archive-2024.10.16/m4/*.m4 /usr/share/aclocal/
 RUN yum install -y ninja-build
 RUN yum install -y perl-IPC-Cmd
 RUN yum install -y perl-core
